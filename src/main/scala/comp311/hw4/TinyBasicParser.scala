@@ -52,7 +52,8 @@ object TinyBasicLineParser extends JavaTokenParsers {
   def line: Parser[Line] = number~statement^^{case n~s => Line(n.value,s)}
 
   def statement: Parser[Statement] =
-    "PRINT" ~ expr_list|
+    "PRINT"~>expr_list^^
+      {case (items, false) => Print(items, false)}|
     "PR" ~ expr_list|
     "IF" ~ expression~relop~expression ~ opt("THEN") ~ statement|
     "GOTO" ~ expression|
@@ -64,8 +65,10 @@ object TinyBasicLineParser extends JavaTokenParsers {
     "REM" ~ stringLiteral|
     builtin
 
-  def expr_list: Parser[List[Expr]] = rep(expr_list_item<~","|expr_list_item<~";")~opt(expr_list_item)^^{
-    case x~Some(expr_item) => x ++ expr_item
+
+  def expr_list: Parser[(List[Printable],Boolean)] = rep(expr_list_item<~","|expr_list_item<~";")~opt(expr_list_item)^^{
+    case items~None => (items, true)
+    case items~Some(item) => (items.+:(item), false)
   }
 
   def expr_list_item: Parser[Printable] = stringLiteral^^(Str(_)) | expression
