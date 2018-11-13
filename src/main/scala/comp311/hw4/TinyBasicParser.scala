@@ -64,18 +64,39 @@ object TinyBasicLineParser extends JavaTokenParsers {
     "REM" ~ stringLiteral|
     builtin
 
-  def expr_list: Parser[Any] = rep(expr_list_item~","|expr_list_item~";")~opt(expr_list_item)
+  def expr_list: Parser[List[Expr]] = rep(expr_list_item<~","|expr_list_item<~";")~opt(expr_list_item)^^{
+    case x~Some(expr_item) => x ++ expr_item
+  }
 
-  def expr_list_item: Parser[Any] = stringLiteral | expression
+  def expr_list_item: Parser[Printable] = stringLiteral^^(Str(_)) | expression
 
-  def var_list: Parser[Any] = variable ~ rep(","~variable)
+  def var_list: Parser[List[Var]] = repsep(variable, ",")
 
-  def expression: Parser[Any] = opt("+"|"-")~term~rep("+"~term|"-"~term)
+  def expression: Parser[Expr] = opt("+"|"-")~term~rep("+"~term|"-"~term)^^ {
+    case None~term~terms => generateExpr(term, terms)
+    case Some("+")~term~terms => generateExpr(term, terms)
+    case Some("-")~term~terms => generateExpr(TermAdd(Num(0), MinusOp, term), terms)
+  }
+
+  def generateExpr(term: Term, list: List[TinyBasicLineParser.~[String, Term]]): Expr ={
+    list match {
+      case Nil => term
+      case x::xs => {
+        x match {
+          case "+"~other => generateExpr(TermAdd(term, PlusOp, other), xs)
+          case "-"~other => generateExpr(TermAdd(term, MinusOp, other), xs)
+        }
+      }
+    }
+  }
+
+
 
   def term: Parser[Term] = factor~rep("*"~factor|"/"~factor)^^{
     case factor~factors => generateTerm(factor, factors)
   }
 
+  // helper function to generate a term
   def generateTerm(term: Term, list: List[TinyBasicLineParser.~[String, Factor]]): Term = {
     list match {
       case Nil => term
