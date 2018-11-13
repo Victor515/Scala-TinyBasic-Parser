@@ -73,8 +73,21 @@ object TinyBasicLineParser extends JavaTokenParsers {
   def expression: Parser[Any] = opt("+"|"-")~term~rep("+"~term|"-"~term)
 
   def term: Parser[Term] = factor~rep("*"~factor|"/"~factor)^^{
-
+    case factor~factors => generateTerm(factor, factors)
   }
+
+  def generateTerm(term: Term, list: List[TinyBasicLineParser.~[String, Factor]]): Term = {
+    list match {
+      case Nil => term
+      case x::xs => {
+        x match {
+          case "*"~factor => generateTerm(FactorMult(term, TimesOp, factor), xs)
+          case "/"~factor => generateTerm(FactorMult(term, DivideOp, factor), xs)
+        }
+      }
+    }
+  }
+
 
   def factor: Parser[Factor] = builtin|variable|number|
     "("~expression~")"^^{case _~e~_ => SubExpression(e)}
