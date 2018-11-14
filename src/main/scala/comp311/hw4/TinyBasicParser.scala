@@ -75,8 +75,8 @@ object TinyBasicLineParser extends JavaTokenParsers {
       builtin
 
   def expr_list: Parser[(List[PrintArg],Boolean)] = rep(expr_list_item~","|expr_list_item~";")~opt(expr_list_item)^^{
-    case items~None => (generatePrintArg(items), true)
-    case items~Some(item) => (generatePrintArg(items).+:(PrintArg(item, false)), false)
+    case items~None => (generatePrintArg(items), false)
+    case items~Some(item) => (generatePrintArg(items).+:(PrintArg(item, false)), true)
   }
 
   // helper function to generate list of PrintArg
@@ -92,7 +92,7 @@ object TinyBasicLineParser extends JavaTokenParsers {
     }
   }
 
-  def expr_list_item: Parser[Printable] = stringLiteral^^(Str(_)) | expression
+  def expr_list_item: Parser[Printable] = stringLiteral^^(x => Str(x.toString)) | expression
 
   def var_list: Parser[List[Var]] = repsep(variable, ",")
 
