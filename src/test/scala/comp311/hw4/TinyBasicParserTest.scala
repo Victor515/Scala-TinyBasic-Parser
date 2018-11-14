@@ -110,5 +110,47 @@ class TinyBasicParserTest {
     assertEquals(expected2, res2.get)
   }
 
+  @Test
+  def testGoSub(): Unit = {
+    val goSubLine = "1001 GOSUB1710"
+    val expected = Line(1001, GoSub(Num(1710)))
+    val res = TinyBasicLineParser.parseAll(TinyBasicLineParser.line, goSubLine)
+    assertEquals(expected, res.get)
+  }
+
+  @Test
+  def testReturnAndEnd(): Unit = {
+    val returnLine = "1710 RETURN"
+    val endLine = "1811 END"
+
+    val expected = Line(1710, Return)
+    val res = TinyBasicLineParser.parseAll(TinyBasicLineParser.line, returnLine)
+    assertEquals(expected, res.get)
+
+    val expected2 = Line(1811, End)
+    val res2 = TinyBasicLineParser.parseAll(TinyBasicLineParser.line, endLine)
+    assertEquals(expected2, res2.get)
+  }
+
+  @Test
+  def testBuiltIn(): Unit = {
+    val rndLine = "1 X=RND(10)"
+    val plotPeekLine = "2 PLOT(PEEK(M+X*10+Y))"
+    val pokeLine = "3 POKE(M+X*10+Y,77)"
+
+    val expected = Line(1, Let(Var("X"), Random(Num(10))))
+    val res = TinyBasicLineParser.parseAll(TinyBasicLineParser.line, rndLine)
+    assertEquals(expected, res.get)
+
+    val expected1 = Line(2, Plot(Peek(TermAdd(TermAdd(Var("M"), PlusOp,
+      FactorMult(Var("X"), TimesOp, Num(10))), PlusOp, Var("Y")))))
+    val res1 = TinyBasicLineParser.parseAll(TinyBasicLineParser.line, plotPeekLine)
+    assertEquals(expected1, res1.get)
+
+    val expected2 = Line(3, Poke(TermAdd(TermAdd(Var("M"), PlusOp,
+      FactorMult(Var("X"), TimesOp, Num(10))), PlusOp, Var("Y")), Num(77)))
+    val res2 = TinyBasicLineParser.parseAll(TinyBasicLineParser.line, pokeLine)
+    assertEquals(expected2, res2.get)
+  }
 
 }
