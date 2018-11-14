@@ -71,15 +71,15 @@ object TinyBasicLineParser extends JavaTokenParsers {
       "GOSUB" ~> expression^^(expr => GoSub(expr))|
       "RETURN"^^(x => Return)|
       "END"^^(x => End)|
-      "REM" ~> stringLiteral^^(x => Removed(x.toString))|
+      "REM" ~> regex(".*".r)^^(x => Removed(x.toString))|
       builtin
-
 
   def expr_list: Parser[(List[PrintArg],Boolean)] = rep(expr_list_item~","|expr_list_item~";")~opt(expr_list_item)^^{
     case items~None => (generatePrintArg(items), true)
     case items~Some(item) => (generatePrintArg(items).+:(PrintArg(item, false)), false)
   }
 
+  // helper function to generate list of PrintArg
   def generatePrintArg(list: List[TinyBasicLineParser.~[Printable, String]], accum: List[PrintArg] = List()): List[PrintArg] = {
     list match {
       case Nil => accum
@@ -114,8 +114,6 @@ object TinyBasicLineParser extends JavaTokenParsers {
     }
   }
 
-
-
   def term: Parser[Term] = factor~rep("*"~factor|"/"~factor)^^{
     case factor~factors => generateTerm(factor, factors)
   }
@@ -133,17 +131,17 @@ object TinyBasicLineParser extends JavaTokenParsers {
     }
   }
 
-
   def factor: Parser[Factor] = builtin|variable|number|
     "("~expression~")"^^{case _~e~_ => SubExpression(e)}
 
   def variable: Parser[Var] =
-    "A"^^(x => Var(x))|
+      "A"^^(x => Var(x))|
       "B"^^(x => Var(x))|
       "C"^^(x => Var(x))|
       "D"^^(x => Var(x))|
       "E"^^(x => Var(x))|
       "F"^^(x => Var(x))|
+      "G"^^(x => Var(x))|
       "H"^^(x => Var(x))|
       "I"^^(x => Var(x))|
       "J"^^(x => Var(x))|
@@ -173,10 +171,11 @@ object TinyBasicLineParser extends JavaTokenParsers {
       "POKE("~expression~","~expression~")"^^{case _~e1~_~e2~_ => Poke(e1, e2)}
 
   def relop: Parser[RelOp] =
-    "<"~opt(">"|"=")^^{
-      case "<"~None => Less
-      case "<"~Some(">") => NotEq
-      case "<"~Some("=") => LessEq}|
+      "<"~opt(">"|"=")^^{
+        case "<"~None => Less
+        case "<"~Some(">") => NotEq
+        case "<"~Some("=") => LessEq
+      }|
       ">"~opt("<"|"=")^^{
         case ">"~None => Greater
         case ">"~Some("<") => NotEq
