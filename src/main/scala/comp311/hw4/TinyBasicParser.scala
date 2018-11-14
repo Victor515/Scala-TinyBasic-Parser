@@ -52,23 +52,44 @@ object TinyBasicLineParser extends JavaTokenParsers {
   def line: Parser[Line] = number~statement^^{case n~s => Line(n.value,s)}
 
   def statement: Parser[Statement] =
-    "PRINT"~>expr_list^^
-      {case (items, false) => Print(items, false)}|
-    "PR" ~ expr_list|
-    "IF" ~ expression~relop~expression ~ opt("THEN") ~ statement|
-    "GOTO" ~ expression|
-    "INPUT" ~ var_list|
-    opt("LET") ~ variable ~ "=" ~ expression|
-    "GOSUB" ~ expression|
-    "RETURN"|
-    "END"|
-    "REM" ~ stringLiteral|
-    builtin
+      "PRINT"~>expr_list^^{
+        case (items, false) => Print(items, false)
+        case (items, true) => Print(items, true)
+      }|
+      "PR"~>expr_list^^{
+        case (items, false) => Print(items, false)
+        case (items, true) => Print(items, true)
+      }|
+      "IF" ~> expression~relop~expression ~ opt("THEN") ~ statement^^{
+        case expr1~relop~expr2~_~statement => If(expr1, relop, expr2, statement)
+      }|
+      "GOTO" ~> expression^^(expr => Goto(expr))|
+      "INPUT" ~> var_list^^(var_list => Input(var_list))|
+      opt("LET") ~> variable ~ "=" ~ expression^^{
+        case variable~"="~expression => Let(variable, expression)
+      }|
+      "GOSUB" ~> expression^^(expr => GoSub(expr))|
+      "RETURN"^^(x => Return)|
+      "END"^^(x => End)|
+      "REM" ~> stringLiteral^^(x => Removed(x.toString))|
+      builtin
 
 
-  def expr_list: Parser[(List[Printable],Boolean)] = rep(expr_list_item<~","|expr_list_item<~";")~opt(expr_list_item)^^{
-    case items~None => (items, true)
-    case items~Some(item) => (items.+:(item), false)
+  def expr_list: Parser[(List[PrintArg],Boolean)] = rep(expr_list_item~","|expr_list_item~";")~opt(expr_list_item)^^{
+    case items~None => (generatePrintArg(items), true)
+    case items~Some(item) => (generatePrintArg(items).+:(PrintArg(item, false)), false)
+  }
+
+  def generatePrintArg(list: List[TinyBasicLineParser.~[Printable, String]], accum: List[PrintArg] = List()): List[PrintArg] = {
+    list match {
+      case Nil => accum
+      case x::xs => {
+        x match {
+          case expr~"," => generatePrintArg(xs, accum.+:(PrintArg(expr, true)))
+          case expr~";" => generatePrintArg(xs, accum.+:(PrintArg(expr, false)))
+        }
+      }
+    }
   }
 
   def expr_list_item: Parser[Printable] = stringLiteral^^(Str(_)) | expression
